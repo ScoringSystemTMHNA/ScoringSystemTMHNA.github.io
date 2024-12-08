@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload PDF and Analyze</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            height: 100vh;
+        }
+
+        .main-container {
+            display: flex; /* Create side-by-side layout for left and right containers */
+            width: 100%;
+            padding: 20px;
+            gap: 20px; /* Add space between the containers */
+        }
+
+        .left-container {
+            display: flex;
+            flex-direction: column; /* Stack the upload, summary, and warning modules */
+            width: 30%; /* Set width for the left side */
+        }
+
+        .container {
+            text-align: center;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px; /* Add spacing below the upload module */
+        }
+        
+        .centered-heading {
+            text-align: center; /* Center the heading text */
+            margin: 20px 0; /* Add vertical spacing */
+        }
+
+        .summary-container {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            height: fit-content;
+            margin-bottom: 20px; /* Add spacing below the modules */
+        }
+
+        .right-container {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            width: 70%; /* Fill the remaining space for the table */
+            overflow: auto; /* Handle table overflow gracefully */
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+
+        td {
+            word-wrap: break-word;
+        }
+
+        .summary-container h2,
+        .warning-container h2 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .summary-container pre,
+        .warning-container pre {
+            white-space: pre-wrap;
+            font-size: 14px;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Left Container -->
+        <div class="left-container">
+            <div class="container">
+                <h1>Upload</h1>
+                <form id="uploadForm">
+                    <label for="file">Choose PDF:</label>
+                    <input type="file" id="file" name="file" accept=".pdf" required>
+                    <button type="submit">Upload</button>
+                </form>
+                <hr>
+            </div>
+            <div class="summary-container">
+                <h2>Summary</h2>
+                <pre id="summary"></pre>
+                <h3>Deduction</h3>
+                <pre id="deductions"></pre>
+                <h3>Warning</h3>
+                <pre id="warning"></pre>
+            </div>
+        </div>
+        
+        <!-- Right Container -->
+        <div class="right-container">
+            <h1 class="centered-heading">Extracted Results</h1>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fields</th>
+                        <th>Content</th>
+                        <th>Confidence</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsTable">
+                    <tr><td>Document Name</td><td></td><td></td></tr>
+                    <tr><td>Title</td><td></td><td></td></tr>
+                    <tr><td>Vendor</td><td></td><td></td></tr>
+                    <tr><td>Vendor SOW</td><td></td><td></td></tr>
+                    <tr><td>Start Date</td><td></td><td></td></tr>
+                    <tr><td>End Date</td><td></td><td></td></tr>
+                    <tr><td>Final Amount Requested</td><td></td><td></td></tr>
+                    <tr><td>CCR</td><td></td><td></td></tr>
+                    <tr><td>Payment Schedule</td><td></td><td></td></tr>
+                    <tr><td>Payment Schedule Extended</td><td></td><td></td></tr>
+                    <tr><td>Sections</td><td></td><td></td></tr>
+                    <tr><td>new_end_date</td><td></td><td></td></tr>
+                    <tr><td>increase_by</td><td></td><td></td></tr>
+                    <tr><td>increase_from</td><td></td><td></td></tr>
+                    <tr><td>decrease_by</td><td></td><td></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const fileInput = document.getElementById('file');
+            if (!fileInput.files[0]) {
+                alert('Please select a file!');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Update the table with field data
+                    const tableBody = document.getElementById('resultsTable');
+                    const rows = tableBody.querySelectorAll('tr');
+                    for (const [field, value] of Object.entries(data.fields)) {
+                        rows.forEach((row) => {
+                            const firstCell = row.querySelector('td:first-child');
+                            if (firstCell && firstCell.textContent.trim() === field) {
+                                const cells = row.querySelectorAll('td');
+                                cells[1].textContent = value.content || 'N/A'; // Update content cell
+                                cells[2].textContent = value.confidence || 'N/A'; // Update confidence cell
+                            }
+                        });
+                    }
+
+                    // Update the summary section
+                    const summaryElement = document.getElementById('summary');
+                    summaryElement.textContent = data.summary || 'No summary available.';
+
+                    // Update the deductions section
+                    const deductionsElement = document.getElementById('deductions');
+                    deductionsElement.textContent = '';
+                    if (data.fields.Deductions && data.fields.Deductions.length > 0) {
+                        data.fields.Deductions.forEach(deduction => {
+                            deductionsElement.textContent += deduction + '\n';
+                        });
+                    } else {
+                        deductionsElement.textContent = 'No deductions.';
+                    }
+
+                    // Update the warning section
+                    const warningElement = document.getElementById('warning');
+                    warningElement.textContent = '';
+                    if (data.fields.Warnings && data.fields.Warnings.length > 0) {
+                        data.fields.Warnings.forEach(warning => {
+                            warningElement.textContent += warning + '\n';
+                        });
+                    } else {
+                        warningElement.textContent = 'No warnings.';
+                    }
+                } else {
+                    alert(data.error || 'Failed to upload file.');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while uploading the file.');
+            }
+        });
+    </script>
+</body>
+</html>
