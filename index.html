@@ -150,74 +150,38 @@
         </div>
     </div>
 
+    <script src="script.js"></script>
     <script>
-        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const fileInput = document.getElementById('file');
-            if (!fileInput.files[0]) {
-                alert('Please select a file!');
-                return;
+    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+    
+        const fileInput = document.getElementById('file');
+        if (!fileInput.files[0]) {
+            alert('Please select a file!');
+            return;
+        }
+    
+        const file = fileInput.files[0];
+    
+        // Call the analyzeDocument function
+        const { extractedData, warnings, deductions, summary } = await analyzeDocument(file);
+    
+        // Update the UI
+        const resultsTable = document.getElementById('resultsTable');
+        for (const [field, { content, confidence }] of Object.entries(extractedData)) {
+            const row = resultsTable.querySelector(`tr:has(td:first-child:contains(${field}))`);
+            if (row) {
+                const cells = row.querySelectorAll('td');
+                cells[1].textContent = content || 'N/A';
+                cells[2].textContent = confidence || 'N/A';
             }
-
-            const formData = new FormData();
-            formData.append('file', fileInput.files[0]);
-
-            try {
-                const response = await fetch('/upload', {
-                    method: 'POST',
-                    body: formData,
-                });
-                const data = await response.json();
-
-                if (response.ok) {
-                    // Update the table with field data
-                    const tableBody = document.getElementById('resultsTable');
-                    const rows = tableBody.querySelectorAll('tr');
-                    for (const [field, value] of Object.entries(data.fields)) {
-                        rows.forEach((row) => {
-                            const firstCell = row.querySelector('td:first-child');
-                            if (firstCell && firstCell.textContent.trim() === field) {
-                                const cells = row.querySelectorAll('td');
-                                cells[1].textContent = value.content || 'N/A'; // Update content cell
-                                cells[2].textContent = value.confidence || 'N/A'; // Update confidence cell
-                            }
-                        });
-                    }
-
-                    // Update the summary section
-                    const summaryElement = document.getElementById('summary');
-                    summaryElement.textContent = data.summary || 'No summary available.';
-
-                    // Update the deductions section
-                    const deductionsElement = document.getElementById('deductions');
-                    deductionsElement.textContent = '';
-                    if (data.fields.Deductions && data.fields.Deductions.length > 0) {
-                        data.fields.Deductions.forEach(deduction => {
-                            deductionsElement.textContent += deduction + '\n';
-                        });
-                    } else {
-                        deductionsElement.textContent = 'No deductions.';
-                    }
-
-                    // Update the warning section
-                    const warningElement = document.getElementById('warning');
-                    warningElement.textContent = '';
-                    if (data.fields.Warnings && data.fields.Warnings.length > 0) {
-                        data.fields.Warnings.forEach(warning => {
-                            warningElement.textContent += warning + '\n';
-                        });
-                    } else {
-                        warningElement.textContent = 'No warnings.';
-                    }
-                } else {
-                    alert(data.error || 'Failed to upload file.');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('An error occurred while uploading the file.');
-            }
-        });
+        }
+    
+        document.getElementById('summary').textContent = summary;
+        document.getElementById('deductions').textContent = deductions.join('\n');
+        document.getElementById('warning').textContent = warnings.join('\n');
+    });
     </script>
+
 </body>
 </html>
